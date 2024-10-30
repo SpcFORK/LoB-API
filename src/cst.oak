@@ -54,6 +54,18 @@ fn formHeader {
 
 fn safeResp(r) std.default(r, {}).resp
 fn volumeFormat(v) v |> string() |> str.padStart(2, '0')
+fn redirLocation(r) r.headers.Location
+
+// ---
+// @@ Anglishize
+
+fn Anglishize(seed, wall, ch, vol, page) query(seed, wall, ch, vol, page)
+fn reqAnglishize(b) with safeResp() req({
+	url: endpoints.anglishize + '?' + b
+	method: 'GET'
+	headers: formHeader()
+	body: ''
+})
 
 // ---
 // @@ Titler
@@ -118,9 +130,8 @@ fn reqHasBookmark(b) with safeResp() req({
 	body: b
 })
 
-fn _redirLocation(r) r.headers.Location
-fn handleBookmark(b) reqBookmark(b) |> _redirLocation()
-fn handleHasBookmark(b) reqHasBookmark(b) |> _redirLocation()
+fn handleBookmark(b) reqBookmark(b) |> redirLocation()
+fn handleHasBookmark(b) reqHasBookmark(b) |> redirLocation()
 
 // ---
 // @@ Resource
@@ -146,7 +157,7 @@ fn reqRandom with safeResp() req({
 	body: ''
 })
 
-fn handleRandom reqRandom() |> _redirLocation()
+fn handleRandom reqRandom() |> redirLocation()
 
 // ---
 // @@ Search
