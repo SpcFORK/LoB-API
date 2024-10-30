@@ -15,6 +15,7 @@ endpoints := {
 	download: 'download' |> cgi!()
 	anglishize: 'anglishize' |> cgi!()
 	bookmarker: 'bookmarker' |> cgi!()
+	resourcelocator: 'resourcelocator' |> cgi!()
 }
 
 // ---
@@ -111,6 +112,19 @@ fn reqHasBookmark(b) with safeResp() req({
 fn _redirLocation(r) r.headers.Location
 fn handleBookmark(b) reqBookmark(b) |> _redirLocation()
 fn handleHasBookmark(b) reqHasBookmark(b) |> _redirLocation()
+
+// ---
+
+fn Resource(s) with http.queryEncode() {
+	extension: s
+}
+
+fn reqResource(b) with safeResp() req({
+	url: endpoints.resourcelocator
+	method: 'POST'
+	headers: formHeader()
+	body: b
+})
 
 // ---
 

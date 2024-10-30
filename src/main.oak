@@ -1,2 +1,7 @@
 std := import('std')
 cst := import('cst')
+
+r := cst.Resource('<p>Hello, World!</p>')
+r |> std.println()
+
+cst.reqResource(r) |> std.println()
