@@ -142,7 +142,7 @@ fn getBook(seed, wall, ch, vol) with reqDownload() Download(
 // ---
 // @@ Generations and Monte Carlo
 
-fn binIndex(i) 2 |> pow(shift)
+fn binIndex(i) 2 |> pow(i)
 fn leftShift(value, shift) value * binIndex(shift)
 fn rightShift(value, shift) int(value / binIndex(shift))
 fn xorShift(input, mask, shift) input ^ ((input % mask) |> leftShift(shift))
