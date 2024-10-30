@@ -1,14 +1,16 @@
 PACKAGE_NAME="babelist"
+ENTRY_OAK="--entry src/main.oak"
+OUTPUT_TMP="--output dist/$PACKAGE_NAME"
 mkdir dist
 
 oak fmt src/* --fix
 echo ""
 
-oak build --entry src/main.oak --output dist/$PACKAGE_NAME.oak
-oak build --entry src/main.oak --output dist/$PACKAGE_NAME.js --web
+oak build $ENTRY_OAK $OUTPUT_TMP.oak
+oak build $ENTRY_OAK $OUTPUT_TMP.js --web
 echo ""
 
-oak pack --entry src/main.oak --output dist/$PACKAGE_NAME
+oak pack $ENTRY_OAK $OUTPUT_TMP
 echo ""
 
 chmod +x dist/$PACKAGE_NAME
