@@ -1,7 +1,13 @@
 std := import('std')
 cst := import('cst')
+req := import('req')
+gen := import('gen')
 
-r := cst.Anglishize(0, 1, 1, 1, 1)
+{ lru: lru } := import('lru')
+
+// ---
+
+r := req.Anglishize(0, 1, 1, 1, 1)
 r |> std.println()
 
-cst.reqAnglishize(r) |> std.println()
+req.reqAnglishize(r) |> std.println()
