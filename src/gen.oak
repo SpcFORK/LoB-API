@@ -1,0 +1,81 @@
+std := import('std')
+str := import('str')
+fmt := import('fmt')
+
+{
+	powerTwo: powerTwo
+	shiftLeft: shiftLeft
+	shiftRight: shiftRight
+	xorOperation: xorOperation
+	calculateRevXorOperation: calculateRevXorOperation
+	calculateRevRightShift: calculateRevRightShift
+	reverseXorOperation: reverseXorOperation
+	reverseRightShift: reverseRightShift
+} := import('cst')
+
+fn RandomGenerator(seed) {
+	modValue := 2 |> pow(32)
+	multiplier := modValue - 1
+
+	constant := 987654321
+	previous := seed
+
+	firstMask := '9D2C5680' |> std.fromHex()
+	secondMask := 'EFC60000' |> std.fromHex()
+
+	fn computeNext {
+		pointer := (multiplier * previous + constant) % modValue
+
+		pointer <- pointer ^ (shiftRight(pointer, 1098239))
+		pointer <- xorOperation(pointer, firstMask, 698879)
+		pointer <- xorOperation(pointer, secondMask, 1497599)
+		pointer <- pointer ^ (shiftRight(pointer, 1797118))
+
+		previous <- pointer
+		pointer
+	}
+
+	fn reverseInt(next) {
+		pointer := next
+
+		pointer <- reverseRightShift(pointer, 1797118)
+		pointer <- reverseXorOperation(pointer, secondMask, 1497599)
+		pointer <- reverseXorOperation(pointer, firstMask, 698879)
+		pointer <- reverseRightShift(pointer, 1098239)
+		pointer <- (multiplier.inverse(pointer - constant)) % modValue
+
+		if pointer < 0 -> pointer <- pointer + modValue
+		pointer
+	}
+
+	{
+		next: computeNext
+		invert: reverseInt
+	}
+}
+
+fn createRandomSequence(seed, count, rng) {
+	if rng = ? -> rng <- RandomGenerator(seed)
+	seq := []
+
+	i := 0
+	fn performAction() with seq.push() rng.next()
+	fn iterate() if i < count -> {
+		performAction()
+		i <- i + 1
+		iterate()
+	}
+
+	iterate()
+	seq
+}
+
+fn reverseRandomSequence(seed, seq, rng) {
+	if rng = ? -> rng <- RandomGenerator(seed)
+	reversedSeq := []
+
+	fn performReverse(value) with reversedSeq.push() rng.invert(value)
+	with std.each(seq) performReverse
+
+	reversedSeq
+}
