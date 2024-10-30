@@ -1,0 +1,222 @@
+std := import('std')
+str := import('str')
+fmt := import('fmt')
+http := import('http')
+
+{ lru: lru } := import('lru')
+
+endpoints := {
+	_domain!: fn domain!(v) 'https://libraryofbabel.info/' << v
+	_cgi!: fn cgi!(xu) domain!(xu) << '.cgi'
+
+	book: 'book' |> cgi!()
+	titler: 'titler' |> cgi!()
+	browse: 'browse' |> cgi!()
+	download: 'download' |> cgi!()
+	anglishize: 'anglishize' |> cgi!()
+	bookmarker: 'bookmarker' |> cgi!()
+}
+
+// ---
+
+fn query(seed, wall, ch, vol, page) {
+	rest := '{{0}}-w{{1}}-s{{2}}-v{{3}}'
+	if page != ? -> rest << ':' << string(page)
+
+	rest |> fmt.format(
+		seed |> string()
+		wall |> string()
+		ch |> string()
+		vol |> string() |> str.padStart(2, '0')
+	)
+}
+
+fn bookmarkQuery(name, index) {
+	'{{0}}:{{1}}' |> fmt.format(
+		name
+		index |> string()
+	)
+}
+
+// ---
+// @ Requests
+
+fn formHeader {
+	{ 'content-type': 'application/x-www-form-urlencoded' }
+}
+
+fn safeResp(r) std.default(r, {}).resp
+fn volumeFormat(v) v |> string() |> str.padStart(2, '0')
+
+// ---
+
+fn Titler(seed, wall, ch) with http.queryEncode() {
+	hex: seed
+	wall: wall
+	shelf: ch
+}
+
+fn reqTitler(b) with safeResp() req({
+	url: endpoints.titler
+	method: 'POST'
+	headers: formHeader()
+	body: b
+})
+
+fn handleTitler(b) reqTitler(b).body |> str.split(';')
+
+// ---
+
+fn Download(seed, wall, ch, vol, title) with http.queryEncode() {
+	hex: seed
+	wall: wall
+	shelf: ch
+	volume: volumeFormat(vol)
+	page: ?
+	title: title
+}
+
+fn reqDownload(b) with safeResp() req({
+	url: endpoints.download
+	method: 'POST'
+	headers: formHeader()
+	body: b
+})
+
+// ---
+
+fn Bookmark(seed, wall, ch, vol, page, title) with http.queryEncode() {
+	hex: seed
+	wall: wall
+	shelf: ch
+	volume: volumeFormat(vol)
+	page: page
+	title: title
+}
+
+fn reqBookmark(b) with safeResp() req({
+	url: endpoints.bookmark
+	method: 'POST'
+	headers: formHeader()
+	body: b
+})
+
+fn reqHasBookmark(b) with safeResp() req({
+	url: endpoints.bookmark
+	method: 'GET'
+	headers: formHeader()
+	body: b
+})
+
+fn _redirLocation(r) r.headers.Location
+fn handleBookmark(b) reqBookmark(b) |> _redirLocation()
+fn handleHasBookmark(b) reqHasBookmark(b) |> _redirLocation()
+
+// ---
+
+TITLES_LRU_MAX := 32
+TITLES_LRU := lru(TITLES_LRU_MAX)
+fn getTitles(seed, wall, ch) if {
+	name := query(seed, wall, ch, ?)
+	val := TITLES_LRU.get(name)
+
+	val != ? -> val
+	_ -> {
+		val := Titler(seed, wall, ch) |> handleTitler()
+		TITLES_LRU.set(name, val)
+
+		val
+	}
+}
+
+fn getTitle(seed, wall, ch, vol) getTitles(seed, wall, ch).(vol)
+
+fn getBook(seed, wall, ch, vol) with reqDownload() Download(
+	seed
+	wall
+	ch
+	vol
+	getTitle(seed, wall, ch, vol)
+)
+
+// ---
+// @@ Generations and Monte Carlo
+
+fn binIndex(i) 2 |> pow(shift)
+fn leftShift(value, shift) value * binIndex(shift)
+fn rightShift(value, shift) int(value / binIndex(shift))
+fn xorShift(input, mask, shift) input ^ ((input % mask) |> leftShift(shift))
+
+fn calculateRevpXorShift(p, mask, shift) p ^ ((p % mask) |> leftShift(shift))
+fn calculateRevpRightShift(p, shift) p ^ (rightShift(p, shift))
+
+fn invertXorShift(pointer, mask, shift) {
+	revp := calculateRevpXorShift(pointer, mask, shift)
+	revp <- calculateRevpXorShift(revp, mask, shift)
+	pointer ^ ((revp % mask) |> leftShift(shift))
+}
+
+fn invertRightShift(pointer, shift) {
+	revp := calculateRevpRightShift(pointer, shift)
+	revp <- calculateRevpRightShift(revp, shift)
+	pointer ^ (rightShift(revp, shift))
+}
+
+fn IPRNG(seed) {
+	m := 2 |> pow(32)
+	a := m - 1
+
+	c := 987654321
+	last := seed
+
+	maskone := '9D2C5680' |> std.fromHex()
+	masktwo := 'EFC60000' |> std.fromHex()
+
+	fn nextInt {
+		pointer := (a * last + c) % m
+
+		pointer <- pointer ^ (rightShift(pointer, 1098239))
+		pointer <- xorShift(pointer, maskone, 698879)
+		pointer <- xorShift(pointer, masktwo, 1497599)
+		pointer <- pointer ^ (rightShift(pointer, 1797118))
+
+		last <- pointer
+		pointer
+	}
+
+	fn invertInt(next) {
+		pointer := next
+
+		pointer <- invertRightShift(pointer, 1797118)
+
+		pointer <- invertXorShift(pointer, masktwo, 1497599)
+		pointer <- invertXorShift(pointer, maskone, 698879)
+
+		pointer <- invertRightShift(pointer, 1098239)
+		pointer <- (ainverse(pointer - c)) % m
+		if pointer < 0 -> pointer <- pointer + m
+		pointer
+	}
+
+	{
+		integer: nextInt
+		invert: invertInt
+	}
+}
+
+fn generateRandomSequence(seed, count, prng) {
+	if prng = ? -> prng <- IPRNG(seed)
+	sequence := []
+
+	i := 0
+	fn call() with sequence.push() prng.integer()
+	fn recurse() if i < count -> {
+		call()
+		i <- i + 1
+		recurse()
+	}
+
+	recurse()
+	sequence
+}
+

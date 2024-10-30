@@ -1,0 +1,18 @@
+std := import('std')
+oakBoat := import('../inst/oak')
+{ Boat: Boat } := import('../src/main')
+
+inst := boat.Boat(oakBoat)
+
+// ---
+// std := import('std')
+//
+// a := 1
+// b := 45
+//
+// c := std.indentity(a) + b * (a + a)
+// ---
+
+inst.var('std').import('std')
+
+int
