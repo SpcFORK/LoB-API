@@ -1,7 +1,7 @@
 std := import('std')
 cst := import('cst')
 
-r := cst.Resource('<p>Hello, World!</p>')
+r := cst.Search('<p>Hello, World!</p>')
 r |> std.println()
 
-cst.reqResource(r) |> std.println()
+cst.reqSearch(r) |> std.println()

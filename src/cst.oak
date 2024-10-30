@@ -10,6 +10,7 @@ endpoints := {
 	_cgi!: fn cgi!(xu) domain!(xu) << '.cgi'
 
 	book: 'book' |> cgi!()
+	search: 'search' |> cgi!()
 	titler: 'titler' |> cgi!()
 	browse: 'browse' |> cgi!()
 	download: 'download' |> cgi!()
@@ -128,6 +129,21 @@ fn reqResource(b) with safeResp() req({
 
 // ---
 
+fn Search(find, method, btnSubmit) with http.queryEncode() {
+	find: find
+	btnSubmit: btnSubmit |> std.default('Search')
+	method: method |> std.default('x')
+}
+
+fn reqSearch(b) with safeResp() req({
+	url: endpoints.search
+	method: 'POST'
+	headers: formHeader()
+	body: b
+})
+
+// ---
+
 TITLES_LRU_MAX := 32
 TITLES_LRU := lru(TITLES_LRU_MAX)
 fn getTitles(seed, wall, ch) if {
@@ -156,81 +172,90 @@ fn getBook(seed, wall, ch, vol) with reqDownload() Download(
 // ---
 // @@ Generations and Monte Carlo
 
-fn binIndex(i) 2 |> pow(i)
-fn leftShift(value, shift) value * binIndex(shift)
-fn rightShift(value, shift) int(value / binIndex(shift))
-fn xorShift(input, mask, shift) input ^ ((input % mask) |> leftShift(shift))
+fn powerTwo(i) 2 |> pow(i)
+fn shiftLeft(value, shift) value * powerTwo(shift)
+fn shiftRight(value, shift) int(value / powerTwo(shift))
+fn xorOperation(input, mask, shift) input ^ ((input % mask) |> shiftLeft(shift))
 
-fn calculateRevpXorShift(p, mask, shift) p ^ ((p % mask) |> leftShift(shift))
-fn calculateRevpRightShift(p, shift) p ^ (rightShift(p, shift))
+fn calculateRevXorOperation(p, mask, shift) p ^ ((p % mask) |> shiftLeft(shift))
+fn calculateRevRightShift(p, shift) p ^ (shiftRight(p, shift))
 
-fn invertXorShift(pointer, mask, shift) {
-	revp := calculateRevpXorShift(pointer, mask, shift)
-	revp <- calculateRevpXorShift(revp, mask, shift)
-	pointer ^ ((revp % mask) |> leftShift(shift))
+fn reverseXorOperation(pointer, mask, shift) {
+	rev := calculateRevXorOperation(pointer, mask, shift)
+	rev <- calculateRevXorOperation(rev, mask, shift)
+	pointer ^ ((rev % mask) |> shiftLeft(shift))
 }
 
-fn invertRightShift(pointer, shift) {
-	revp := calculateRevpRightShift(pointer, shift)
-	revp <- calculateRevpRightShift(revp, shift)
-	pointer ^ (rightShift(revp, shift))
+fn reverseRightShift(pointer, shift) {
+	rev := calculateRevRightShift(pointer, shift)
+	rev <- calculateRevRightShift(rev, shift)
+	pointer ^ (shiftRight(rev, shift))
 }
 
-fn IPRNG(seed) {
-	m := 2 |> pow(32)
-	a := m - 1
+fn RandomGenerator(seed) {
+	modValue := 2 |> pow(32)
+	multiplier := modValue - 1
 
-	c := 987654321
-	last := seed
+	constant := 987654321
+	previous := seed
 
-	maskone := '9D2C5680' |> std.fromHex()
-	masktwo := 'EFC60000' |> std.fromHex()
+	firstMask := '9D2C5680' |> std.fromHex()
+	secondMask := 'EFC60000' |> std.fromHex()
 
-	fn nextInt {
-		pointer := (a * last + c) % m
+	fn computeNext {
+		pointer := (multiplier * previous + constant) % modValue
 
-		pointer <- pointer ^ (rightShift(pointer, 1098239))
-		pointer <- xorShift(pointer, maskone, 698879)
-		pointer <- xorShift(pointer, masktwo, 1497599)
-		pointer <- pointer ^ (rightShift(pointer, 1797118))
+		pointer <- pointer ^ (shiftRight(pointer, 1098239))
+		pointer <- xorOperation(pointer, firstMask, 698879)
+		pointer <- xorOperation(pointer, secondMask, 1497599)
+		pointer <- pointer ^ (shiftRight(pointer, 1797118))
 
-		last <- pointer
+		previous <- pointer
 		pointer
 	}
 
-	fn invertInt(next) {
+	fn reverseInt(next) {
 		pointer := next
 
-		pointer <- invertRightShift(pointer, 1797118)
+		pointer <- reverseRightShift(pointer, 1797118)
 
-		pointer <- invertXorShift(pointer, masktwo, 1497599)
-		pointer <- invertXorShift(pointer, maskone, 698879)
+		pointer <- reverseXorOperation(pointer, secondMask, 1497599)
+		pointer <- reverseXorOperation(pointer, firstMask, 698879)
 
-		pointer <- invertRightShift(pointer, 1098239)
-		pointer <- (ainverse(pointer - c)) % m
-		if pointer < 0 -> pointer <- pointer + m
+		pointer <- reverseRightShift(pointer, 1098239)
+		pointer <- (multiplier.inverse(pointer - constant)) % modValue
+		if pointer < 0 -> pointer <- pointer + modValue
 		pointer
 	}
 
 	{
-		integer: nextInt
-		invert: invertInt
+		next: computeNext
+		invert: reverseInt
 	}
 }
 
-fn generateRandomSequence(seed, count, prng) {
-	if prng = ? -> prng <- IPRNG(seed)
-	sequence := []
+fn createRandomSequence(seed, count, rng) {
+	if rng = ? -> rng <- RandomGenerator(seed)
+	seq := []
 
 	i := 0
-	fn call() with sequence.push() prng.integer()
-	fn recurse() if i < count -> {
-		call()
+	fn performAction() with seq.push() rng.next()
+	fn iterate() if i < count -> {
+		performAction()
 		i <- i + 1
-		recurse()
+		iterate()
 	}
 
-	recurse()
-	sequence
+	iterate()
+	seq
 }
 
+fn reverseRandomSequence(seed, seq, rng) {
+	if rng = ? -> rng <- RandomGenerator(seed)
+	reversedSeq := []
+
+	fn performReverse(value) with reversedSeq.push() rng.invert(value)
+	with std.each(seq) performReverse
+
+	reversedSeq
+}
