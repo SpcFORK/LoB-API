@@ -67,7 +67,7 @@ fn BabelLibrary Ctx := {
 		}
 
 		retrieve: fn retrieve(location) if ent := entries.(location.hex) {
-			? -> ?
+			? -> ? // On demand will go here
 			_ -> ent.content
 		}
 
