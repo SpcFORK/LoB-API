@@ -19,6 +19,7 @@ http := import('http')
 // @@ Anglishize
 
 fn Anglishize(seed, wall, ch, vol, page) query(seed, wall, ch, vol, page)
+
 fn reqAnglishize(b) with safeResp() req({
 	url: endpoints.anglishize + '?' + b
 	method: 'GET'
@@ -139,6 +140,7 @@ fn reqSearch(b) with safeResp() req({
 
 TITLES_LRU_MAX := 32
 TITLES_LRU := lru(TITLES_LRU_MAX)
+
 fn getTitles(seed, wall, ch) if {
 	name := query(seed, wall, ch, ?)
 	val := TITLES_LRU.get(name)

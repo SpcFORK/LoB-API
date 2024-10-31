@@ -2,12 +2,13 @@ std := import('std')
 cst := import('cst')
 req := import('req')
 gen := import('gen')
+mygen := import('mygen')
 
 { lru: lru } := import('lru')
 
 // ---
 
-r := req.Anglishize(0, 1, 1, 1, 1)
+r := gen.RandomGenerator(0)
 r |> std.println()
 
-req.reqAnglishize(r) |> std.println()
+gen.createRandomSequence(?, 100, r) |> std.println()

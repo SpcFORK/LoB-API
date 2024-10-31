@@ -60,21 +60,21 @@ fn redirLocation(r) r.headers.Location
 // @ Generations and Monte Carlo
 
 fn powerTwo(i) 2 |> pow(i)
-fn shiftLeft(value, shift) value * powerTwo(shift)
+fn shiftLeft(value, shift) int(value * powerTwo(shift))
 fn shiftRight(value, shift) int(value / powerTwo(shift))
-fn xorOperation(input, mask, shift) input ^ ((input % mask) |> shiftLeft(shift))
+fn xorOperation(input, mask, shift) int(input ^ ((input % mask) |> shiftLeft(shift)))
 
-fn calculateRevXorOperation(p, mask, shift) p ^ ((p % mask) |> shiftLeft(shift))
-fn calculateRevRightShift(p, shift) p ^ (shiftRight(p, shift))
+fn calculateRevXorOperation(p, mask, shift) int(p ^ ((p % mask) |> shiftLeft(shift)))
+fn calculateRevRightShift(p, shift) int(p ^ (shiftRight(p, shift)))
 
 fn reverseXorOperation(pointer, mask, shift) {
 	rev := calculateRevXorOperation(pointer, mask, shift)
 	rev <- calculateRevXorOperation(rev, mask, shift)
-	pointer ^ ((rev % mask) |> shiftLeft(shift))
+	int(pointer ^ ((rev % mask) |> shiftLeft(shift)))
 }
 
 fn reverseRightShift(pointer, shift) {
 	rev := calculateRevRightShift(pointer, shift)
 	rev <- calculateRevRightShift(rev, shift)
-	pointer ^ (shiftRight(rev, shift))
+	int(pointer ^ (shiftRight(rev, shift)))
 }
